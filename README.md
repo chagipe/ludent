@@ -11,7 +11,7 @@ Inventario con lotes y vencimientos · varios almacenes (ajustes y transferencia
 - El primer usuario que se registra queda como `admin`; los demás entran como `pendiente` hasta que el admin les asigne un rol (Configuración).
 
 ## Puesta en marcha
-1. **Supabase**: crea un proyecto. En *SQL Editor* ejecuta, en orden, `supabase/migrations/001_schema.sql`, `002_functions.sql` y `003_policies.sql`.
+1. **Supabase**: crea un proyecto. En *SQL Editor* ejecuta, en orden, `supabase/migrations/001_schema.sql`, `002_functions.sql`, `003_policies.sql` y `004_stock_entry.sql`.
    En *Authentication > Providers > Email* puedes desactivar "Confirm email" mientras pruebas.
 2. **Local**: `cp .env.example .env.local`, completa `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Project Settings > API), luego `npm install && npm run dev`.
 3. Abre http://localhost:3000, crea tu cuenta (será administrador) y completa **Configuración** (razón social, RUC, series).

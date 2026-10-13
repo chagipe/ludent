@@ -5,7 +5,7 @@ import { sb } from '@/lib/supabase';
 import { money, useData, Empty } from '@/lib/ui';
 
 const iso = (n: number) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
-export default function Reportes() {
+function Ventas() {
   const [f, setF] = useState(iso(-30)); const [t, setT] = useState(iso(0));
   const [d] = useData(async () => {
     const [s, p] = await Promise.all([
@@ -43,4 +43,44 @@ export default function Reportes() {
       {tb('Por vendedor', ['Vendedor', 'Documentos', 'Ventas'], Object.values(E), (x) => [x.n, x.q, money(x.t)])}
     </>
   );
+}
+
+const KIND: Record<string, string> = { ingreso: 'Ingreso de stock', compra: 'Compra', venta: 'Venta', 'devolución': 'Devolución', ajuste: 'Ajuste', 'anulación venta': 'Anulación de venta', 'anulación compra': 'Anulación de compra', 'transferencia entrada': 'Transferencia (entrada)', 'transferencia salida': 'Transferencia (salida)' };
+function Movimientos() {
+  const [f, setF] = useState(iso(-30)); const [t, setT] = useState(iso(0)); const [k, setK] = useState('');
+  const [d] = useData(async () => {
+    const [m, u] = await Promise.all([
+      sb.from('stock_movements').select('*,products(name,sku),warehouses(name)').gte('created_at', f + 'T00:00:00').lte('created_at', t + 'T23:59:59').order('created_at', { ascending: false }).limit(2000),
+      sb.from('profiles').select('id,full_name'),
+    ]);
+    return { m: m.data || [], u: Object.fromEntries((u.data || []).map((x: any) => [x.id, x.full_name])) };
+  }, [f, t]);
+  if (!d) return <Empty>Cargando…</Empty>;
+  const rows = d.m.filter((x: any) => !k || x.kind === k), sum = (kinds: string[], sign: number) => d.m.filter((x: any) => kinds.includes(x.kind) && x.qty * sign > 0).reduce((a: number, x: any) => a + Math.abs(x.qty), 0);
+  const kinds = Array.from(new Set(d.m.map((x: any) => x.kind))) as string[];
+  function xls() {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length ? rows.map((x: any) => ({ Fecha: x.created_at.slice(0, 16).replace('T', ' '), Movimiento: KIND[x.kind] || x.kind, SKU: x.products?.sku, Producto: x.products?.name, Almacen: x.warehouses?.name, Cantidad: x.qty, Usuario: d!.u[x.created_by] || '', Detalle: x.note || '' })) : [{}]), 'Movimientos');
+    XLSX.writeFile(wb, `movimientos-${f}_${t}.xlsx`);
+  }
+  return (
+    <>
+      <h2>Movimientos de inventario</h2>
+      <div className="bar">Desde <input type="date" value={f} onChange={(e) => setF(e.target.value)} /> Hasta <input type="date" value={t} onChange={(e) => setT(e.target.value)} />
+        <select value={k} onChange={(e) => setK(e.target.value)}><option value="">Todos los movimientos</option>{kinds.map((x) => <option key={x} value={x}>{KIND[x] || x}</option>)}</select><button className="b" onClick={xls}>Exportar a Excel</button></div>
+      <div className="g">
+        <div className="c"><div className="k">Unidades ingresadas (compras e ingresos)</div><div className="v" style={{ color: 'var(--ok)' }}>+{sum(['compra', 'ingreso'], 1)}</div></div>
+        <div className="c"><div className="k">Unidades vendidas</div><div className="v">{sum(['venta'], -1)}</div></div>
+        <div className="c"><div className="k">Devoluciones y anulaciones</div><div className="v">{sum(['devolución', 'anulación venta'], 1) + sum(['anulación compra'], -1)}</div></div>
+        <div className="c"><div className="k">Ajustes (neto)</div><div className="v">{d.m.filter((x: any) => x.kind === 'ajuste').reduce((a: number, x: any) => a + x.qty, 0)}</div></div>
+      </div>
+      <div className="c tw" style={{ padding: 0 }}>{rows.length ? <table><thead><tr><th>Fecha</th><th>Movimiento</th><th>Producto</th><th>Almacén</th><th className="r">Cantidad</th><th>Usuario</th><th>Detalle</th></tr></thead>
+        <tbody>{rows.map((x: any) => <tr key={x.id}><td>{new Date(x.created_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })}</td><td>{KIND[x.kind] || x.kind}</td><td>{x.products?.name}</td><td>{x.warehouses?.name}</td><td className="r"><b style={{ color: x.qty > 0 ? 'var(--ok)' : 'var(--dg)' }}>{x.qty > 0 ? '+' : ''}{x.qty}</b></td><td>{d.u[x.created_by] || '—'}</td><td className="mu">{x.note || ''}</td></tr>)}</tbody></table> : <Empty>Sin movimientos en este periodo</Empty>}</div>
+      <p className="mu">Todo cambio de stock queda registrado aquí con fecha, usuario y motivo: nada se modifica "desde cero" sin dejar rastro.</p>
+    </>
+  );
+}
+export default function Reportes() {
+  const [tab, setTab] = useState('v');
+  return (<><div className="tt"><button className={tab === 'v' ? 'b' : 's'} onClick={() => setTab('v')}>Ventas</button><button className={tab === 'm' ? 'b' : 's'} onClick={() => setTab('m')}>Movimientos de inventario</button></div>{tab === 'v' ? <Ventas /> : <Movimientos />}</>);
 }

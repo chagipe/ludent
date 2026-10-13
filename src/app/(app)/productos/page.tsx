@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { sb } from '@/lib/supabase';
-import { Crud, Modal, Tag, money, fdate, rpc, toast, useData, useMe, Empty } from '@/lib/ui';
+import { Crud, Modal, Tag, Thumb, money, fdate, rpc, toast, useData, useMe, Empty } from '@/lib/ui';
 
 export default function Productos() {
   const me = useMe(); const [hist, setHist] = useState<any>(null); const [kdx, setKdx] = useState<any>(null); const [ing, setIng] = useState<any>(null); const [tick, setTick] = useState(0);
@@ -16,12 +16,12 @@ export default function Productos() {
     <>
       <Crud key={tick} table="products" title="Productos" order="name" select="*,product_stock(qty),suppliers(name)" can={me.role !== 'vendedor'} canDelete={me.role === 'admin'}
         fields={[
-          { k: 'sku', l: 'SKU' }, { k: 'barcode', l: 'Código de barras' }, { k: 'name', l: 'Nombre' }, { k: 'category', l: 'Categoría' },
+          { k: 'image_url', l: 'Imagen', t: 'image' }, { k: 'sku', l: 'SKU' }, { k: 'barcode', l: 'Código de barras' }, { k: 'name', l: 'Nombre' }, { k: 'category', l: 'Categoría' },
           { k: 'supplier_id', l: 'Proveedor', t: 'select', opts: sup.map((s: any) => ({ v: s.id, l: s.name })) },
           { k: 'cost', l: 'Costo (S/)', t: 'number' }, { k: 'price', l: 'Precio venta (S/)', t: 'number' }, { k: 'price_wholesale', l: 'Precio mayorista (S/)', t: 'number' }, { k: 'min_stock', l: 'Stock mínimo', t: 'number' },
         ]}
         cols={[
-          { l: 'SKU', r: (r) => r.sku }, { l: 'Producto', r: (r) => r.name }, { l: 'Categoría', r: (r) => r.category }, { l: 'Proveedor', r: (r) => r.suppliers?.name || '—' },
+          { l: 'Imagen', r: (r) => <Thumb url={r.image_url} name={r.name} /> }, { l: 'SKU', r: (r) => r.sku }, { l: 'Producto', r: (r) => r.name }, { l: 'Categoría', r: (r) => r.category }, { l: 'Proveedor', r: (r) => r.suppliers?.name || '—' },
           { l: 'Stock', right: true, r: (r) => <Tag k={stock(r) <= r.min_stock ? 'low' : 'good'}>{stock(r)}</Tag> },
           { l: 'Costo', right: true, r: (r) => money(r.cost) }, { l: 'Precio', right: true, r: (r) => money(r.price) },
           { l: 'Margen', right: true, r: (r) => (r.price ? Math.round(((r.price - r.cost) / r.price) * 100) : 0) + '%' },

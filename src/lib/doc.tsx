@@ -2,16 +2,16 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { sb } from './supabase';
-import { Modal, Tag, Empty, money, fdate, saldo, rpc, toast, useData, useMe, daysLeft } from './ui';
+import { Modal, Tag, Thumb, Empty, money, fdate, saldo, rpc, toast, useData, useMe, daysLeft } from './ui';
 
-type Line = { product_id: string; name: string; qty: number; price?: number; cost?: number; lot_ref?: string; expires_on?: string };
+type Line = { product_id: string; name: string; img?: string; qty: number; price?: number; cost?: number; lot_ref?: string; expires_on?: string };
 
 /* ---------- Venta / Compra ---------- */
 export function Doc({ kind }: { kind: 'sale' | 'purchase' }) {
   const s = kind === 'sale', router = useRouter();
   const [data] = useData(async () => {
     const [p, w, par] = await Promise.all([
-      sb.from('products').select('id,sku,barcode,name,cost,price,price_wholesale,product_stock(warehouse_id,qty)').order('name'),
+      sb.from('products').select('id,sku,barcode,name,image_url,cost,price,price_wholesale,product_stock(warehouse_id,qty)').order('name'),
       sb.from('warehouses').select('*').order('name'),
       sb.from(s ? 'customers' : 'suppliers').select('*').order('name'),
     ]);
@@ -39,7 +39,7 @@ export function Doc({ kind }: { kind: 'sale' | 'purchase' }) {
     const used = lines.filter((l) => l.product_id === id).reduce((a, l) => a + l.qty, 0);
     if (s && used + q > stockOf(p)) return toast('Stock insuficiente en este almacén. Disponible: ' + (stockOf(p) - used));
     const v = u === '' ? (s ? price(p) : p.cost) : +u;
-    setLines([...lines, s ? { product_id: id, name: p.name, qty: q, price: v } : { product_id: id, name: p.name, qty: q, cost: v, lot_ref: lot, expires_on: exp }]);
+    setLines([...lines, s ? { product_id: id, name: p.name, img: p.image_url, qty: q, price: v } : { product_id: id, name: p.name, img: p.image_url, qty: q, cost: v, lot_ref: lot, expires_on: exp }]);
     setPid(''); setQty(1); setUnit(''); setLot(''); setExp('');
   }
   function scan(v: string) {
@@ -89,6 +89,7 @@ export function Doc({ kind }: { kind: 'sale' | 'purchase' }) {
         <div className="bar">
           <input placeholder="Escanear código…" style={{ width: 150 }} onKeyDown={(e) => { if (e.key === 'Enter') { scan((e.target as HTMLInputElement).value); (e.target as HTMLInputElement).value = ''; } }} />
           <select value={pid} onChange={(e) => pick(e.target.value)} style={{ flex: 1, minWidth: 200 }}><option value="">Producto…</option>{data.products.map((p: any) => <option key={p.id} value={p.id}>{p.sku} · {p.name} (stock {stockOf(p)})</option>)}</select>
+          {pid && <Thumb url={data.products.find((x: any) => x.id === pid)?.image_url} name={data.products.find((x: any) => x.id === pid)?.name} size={44} />}
           <input type="number" min={1} value={qty} onChange={(e) => setQty(+e.target.value)} style={{ width: 80 }} title="Cantidad" />
           <input type="number" step="0.01" min={0} value={unit} onChange={(e) => setUnit(e.target.value)} placeholder={s ? 'Precio' : 'Costo'} style={{ width: 100 }} />
           {!s && <><input placeholder="N° lote" value={lot} onChange={(e) => setLot(e.target.value)} style={{ width: 100 }} /><input type="date" value={exp} onChange={(e) => setExp(e.target.value)} /></>}
@@ -96,7 +97,7 @@ export function Doc({ kind }: { kind: 'sale' | 'purchase' }) {
         </div>
         <div className="tw">{lines.length ? (
           <table><thead><tr><th>Producto</th>{!s && <><th>Lote</th><th>Vence</th></>}<th className="r">Cant.</th><th className="r">{s ? 'Precio' : 'Costo'}</th><th className="r">Importe</th><th /></tr></thead>
-            <tbody>{lines.map((l, i) => <tr key={i}><td>{l.name}</td>{!s && <><td>{l.lot_ref || '—'}</td><td>{fdate(l.expires_on)}</td></>}<td className="r">{l.qty}</td><td className="r">{money(s ? l.price : l.cost)}</td><td className="r">{money(l.qty * (s ? l.price! : l.cost!))}</td><td className="r"><button className="s" onClick={() => setLines(lines.filter((_, j) => j !== i))}>Quitar</button></td></tr>)}</tbody></table>
+            <tbody>{lines.map((l, i) => <tr key={i}><td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Thumb url={l.img} name={l.name} size={32} />{l.name}</div></td>{!s && <><td>{l.lot_ref || '—'}</td><td>{fdate(l.expires_on)}</td></>}<td className="r">{l.qty}</td><td className="r">{money(s ? l.price : l.cost)}</td><td className="r">{money(l.qty * (s ? l.price! : l.cost!))}</td><td className="r"><button className="s" onClick={() => setLines(lines.filter((_, j) => j !== i))}>Quitar</button></td></tr>)}</tbody></table>
         ) : <Empty>Agrega productos al detalle</Empty>}</div>
       </div>
       <div className="c" style={{ maxWidth: 360, marginLeft: 'auto' }}>

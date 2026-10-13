@@ -1,12 +1,12 @@
 'use client';
 import { useState } from 'react';
 import { sb } from '@/lib/supabase';
-import { Crud, Modal, Tag, rpc, toast, useData, useMe, fdate, daysLeft, Empty } from '@/lib/ui';
+import { Crud, Modal, Tag, Thumb, rpc, toast, useData, useMe, fdate, daysLeft, Empty } from '@/lib/ui';
 
 export default function Almacenes() {
   const me = useMe(); const [m, setM] = useState<any>(null);
   const [d, reload] = useData(async () => {
-    const [w, p, l] = await Promise.all([sb.from('warehouses').select('*').order('name'), sb.from('products').select('id,sku,name,product_stock(warehouse_id,qty)').order('name'), sb.from('lots').select('*,products(name),warehouses(name)').gt('qty', 0).order('expires_on')]);
+    const [w, p, l] = await Promise.all([sb.from('warehouses').select('*').order('name'), sb.from('products').select('id,sku,name,image_url,product_stock(warehouse_id,qty)').order('name'), sb.from('lots').select('*,products(name),warehouses(name)').gt('qty', 0).order('expires_on')]);
     return { w: w.data || [], p: p.data || [], l: l.data || [] };
   });
   if (!d) return <Empty>Cargando…</Empty>;
@@ -23,7 +23,7 @@ export default function Almacenes() {
       <Crud table="warehouses" title="Almacenes" can={me.role === 'admin'} fields={[{ k: 'name', l: 'Nombre' }]} cols={[{ l: 'Almacén', r: (r) => r.name }, { l: 'Predeterminado', r: (r) => (r.is_default ? 'Sí' : '') }]} />
       <h2>Stock por almacén</h2>
       <div className="c tw" style={{ padding: 0 }}><table><thead><tr><th>SKU</th><th>Producto</th>{d.w.map((w: any) => <th key={w.id} className="r">{w.name}</th>)}<th /></tr></thead>
-        <tbody>{d.p.map((p: any) => <tr key={p.id}><td>{p.sku}</td><td>{p.name}</td>{d.w.map((w: any) => <td key={w.id} className="r">{q(p, w.id)}</td>)}
+        <tbody>{d.p.map((p: any) => <tr key={p.id}><td>{p.sku}</td><td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Thumb url={p.image_url} name={p.name} size={32} />{p.name}</div></td>{d.w.map((w: any) => <td key={w.id} className="r">{q(p, w.id)}</td>)}
           <td className="r"><button className="s" onClick={() => setM({ t: 'adj', p, w: d.w[0].id, n: q(p, d.w[0].id) })}>Ajustar</button> <button className="s" disabled={d.w.length < 2} onClick={() => setM({ t: 'tr', p, w: d.w[0].id, to: d.w[1]?.id, n: 1 })}>Transferir</button></td></tr>)}</tbody></table></div>
       <h2 style={{ marginTop: 20 }}>Lotes y vencimientos</h2>
       <div className="c tw" style={{ padding: 0 }}>{d.l.length ? <table><thead><tr><th>Producto</th><th>Lote</th><th>Almacén</th><th>Vence</th><th>Estado</th><th className="r">Disponible</th></tr></thead>
